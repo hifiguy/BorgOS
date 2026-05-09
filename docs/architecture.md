@@ -214,7 +214,7 @@ The full implementation design includes:
 - Council review findings (4-agent adversarial debate, 3 rounds)
 - Integration diagrams and cherry-pick implementation maps
 
-Available under consulting engagement. Contact: [AI Ascent](mailto:joshua.r.kimmel@gmail.com)
+Available under consulting engagement. Contact: Discord `SecDude2469` · GitHub [@HiFiGuy](https://github.com/HiFiGuy)
 
 ---
 
