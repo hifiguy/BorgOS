@@ -35,7 +35,7 @@ L3: WORKING      — Agent-local scratchpad (fast, ephemeral, per-agent)
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Design](docs/architecture.md) | Full technical design (1,700+ lines) |
+| [Architecture Overview](docs/architecture.md) | Architecture overview — layer design, write pipeline, confidence system, anomaly detection |
 | [API Reference](docs/api.md) | `/insert` and `/query` endpoint contracts |
 
 ## Tech Stack
