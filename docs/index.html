@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BorgOS — Fleet Memory Architecture for AI Agents</title>
+  <meta name="description" content="Governed fleet memory architecture for multi-agent AI systems. Write validation, confidence tiers, anti-laundering detection, anomaly alerter.">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+
+    :root {
+      --bg: #0a0a12;
+      --surface: #13131f;
+      --primary: #00ff88;
+      --secondary: #0080ff;
+      --tertiary: #8800ff;
+      --text: #e8e8f0;
+      --text-secondary: #a0a0c0;
+      --text-muted: #6060a0;
+      --danger: #ff4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 0 2rem; }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(0,255,136,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: clamp(3rem, 8vw, 6rem);
+      color: var(--primary);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .hero .tagline {
+      font-size: 1.4rem;
+      color: var(--text-secondary);
+      margin-top: 1rem;
+      max-width: 600px;
+    }
+
+    .hero .hook {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-top: 2rem;
+      font-style: italic;
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    .cta {
+      display: inline-block;
+      padding: 0.8rem 2rem;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .cta-primary {
+      background: var(--primary);
+      color: var(--bg);
+    }
+
+    .cta-primary:hover { filter: brightness(1.15); }
+
+    .cta-secondary {
+      border: 1px solid var(--text-muted);
+      color: var(--text);
+    }
+
+    .cta-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Sections */
+    section {
+      padding: 5rem 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    section h2 {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 2rem;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+    }
+
+    section h3 {
+      font-size: 1.2rem;
+      color: var(--text);
+      margin: 2rem 0 0.75rem;
+    }
+
+    section p, section li {
+      color: var(--text-secondary);
+      max-width: 720px;
+    }
+
+    section ul { list-style: none; padding-left: 0; }
+    section li { padding: 0.4rem 0; }
+    section li::before { content: '▸ '; color: var(--primary); }
+
+    /* Problem */
+    .problem-quote {
+      font-size: 1.3rem;
+      color: var(--text);
+      border-left: 3px solid var(--danger);
+      padding-left: 1.5rem;
+      margin: 2rem 0;
+      max-width: 700px;
+    }
+
+    /* Architecture diagram */
+    .arch-diagram {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 2rem;
+      font-family: 'DM Sans', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      margin: 2rem 0;
+    }
+
+    .layer {
+      padding: 1rem 1.5rem;
+      margin: 0.5rem 0;
+      border-radius: 4px;
+      border-left: 3px solid;
+    }
+
+    .layer-4 { border-color: var(--primary); background: rgba(0,255,136,0.05); }
+    .layer-1 { border-color: var(--secondary); background: rgba(0,128,255,0.05); }
+    .layer-2 { border-color: var(--tertiary); background: rgba(136,0,255,0.05); }
+    .layer-3 { border-color: var(--text-muted); background: rgba(96,96,160,0.05); }
+
+    .layer-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .layer-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Pipeline */
+    .pipeline-stages {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin: 2rem 0;
+    }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .stage-num {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .stage-name {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .stage.active { border-color: var(--primary); }
+    .stage.deferred { opacity: 0.4; }
+
+    /* Competitors */
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 2rem 0;
+      font-size: 0.9rem;
+    }
+
+    .comp-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 2px solid var(--primary);
+      color: var(--primary);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comp-table td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: var(--text-secondary);
+    }
+
+    .comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .check { color: var(--primary); }
+    .cross { color: var(--danger); opacity: 0.6; }
+
+    /* Validation */
+    .validation-badge {
+      display: inline-block;
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.3);
+      color: var(--primary);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin: 0.25rem 0.25rem 0.25rem 0;
+    }
+
+    /* Footer */
+    footer {
+      padding: 3rem 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 2.5rem; }
+      .pipeline-stages { grid-template-columns: repeat(2, 1fr); }
+      .comp-table { font-size: 0.75rem; }
+      .comp-table th, .comp-table td { padding: 0.4rem 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="hero">
+      <h1>BorgOS</h1>
+      <p class="tagline">The Collective Memory OS for AI Fleets</p>
+      <p class="hook">Your agents are lying to each other and you don't know it.</p>
+      <div class="cta-group">
+        <a href="https://github.com/HiFiGuy/BorgOS" class="cta cta-primary">View on GitHub</a>
+        <a href="architecture.html" class="cta cta-secondary">Architecture Overview</a>
+      </div>
+    </div>
+
+    <section id="problem">
+      <h2>The Problem</h2>
+      <p>Every team running multiple AI agents hits the same wall: agents don't share what they learn. When they do, there's nothing stopping them from creating echo chambers where guesses get amplified into facts.</p>
+      <div class="problem-quote">
+        Agent A writes a guess. Agent B retrieves it, writes it back as a "corroborating" fact. Now two agents agree. Confidence goes up. The wrong answer looks more credible than the right one.
+      </div>
+      <p>This isn't theoretical. HaluMem (2025) proved write-time extraction compounds hallucinations. MemoryGraft (2025) demonstrated persistent compromise through poisoned experience. And that was single-agent. Multiply it across a fleet.</p>
+      <p style="margin-top: 1rem;">Mem0 ($24M raised, 186M API calls/month) has zero write validation. Zep (Samsung, AWS) has no write pipeline. Letta ($10M) has access control but no validation. The entire market has the same gap.</p>
+    </section>
+
+    <section id="architecture">
+      <h2>Four-Layer Architecture</h2>
+      <div class="arch-diagram">
+        <div class="layer layer-4">
+          <div class="layer-label">L4: Reference — Ground Truth</div>
+          <div class="layer-desc">Operator-curated, kernel-enforced read-only. Agents cannot modify. Confidence: 1.0</div>
+        </div>
+        <div class="layer layer-1">
+          <div class="layer-label">L1: Provenance — Forensic Record</div>
+          <div class="layer-desc">Append-only PostgreSQL, bitemporal. No UPDATE, no DELETE. Permanent audit trail.</div>
+        </div>
+        <div class="layer layer-2">
+          <div class="layer-label">L2: Semantic — Shared Recall</div>
+          <div class="layer-desc">Qdrant, cross-agent, confidence-weighted ranking. Per-agent API keys.</div>
+        </div>
+        <div class="layer layer-3">
+          <div class="layer-label">L3: Working — Agent Scratchpad</div>
+          <div class="layer-desc">Fast, ephemeral, per-agent. Promotes to L2 via validated pipeline.</div>
+        </div>
+      </div>
+      <p>When reference knowledge and agent knowledge collide on the same topic, reference wins. Always. The agent version gets a retrieval penalty.</p>
+    </section>
+
+    <section id="pipeline">
+      <h2>Write Validation Pipeline</h2>
+      <p>Every memory write passes through a governed pipeline. v1 implements the first 4 stages. The full 12-stage architecture activates remaining stages based on production soak data.</p>
+      <div class="pipeline-stages">
+        <div class="stage active"><div class="stage-num">1</div><div class="stage-name">Auth</div></div>
+        <div class="stage active"><div class="stage-num">2</div><div class="stage-name">Sanitize</div></div>
+        <div class="stage active"><div class="stage-num">3</div><div class="stage-name">Embed</div></div>
+        <div class="stage active"><div class="stage-num">4</div><div class="stage-name">Dual Write</div></div>
+        <div class="stage deferred"><div class="stage-num">5</div><div class="stage-name">Rate Limit</div></div>
+        <div class="stage deferred"><div class="stage-num">6</div><div class="stage-name">Self-Ref Detect</div></div>
+        <div class="stage deferred"><div class="stage-num">7</div><div class="stage-name">L4 Collision</div></div>
+        <div class="stage deferred"><div class="stage-num">8</div><div class="stage-name">Novelty Gate</div></div>
+        <div class="stage deferred"><div class="stage-num">9</div><div class="stage-name">Confidence</div></div>
+        <div class="stage deferred"><div class="stage-num">10</div><div class="stage-name">Provenance</div></div>
+        <div class="stage deferred"><div class="stage-num">11</div><div class="stage-name">Anomaly Score</div></div>
+        <div class="stage deferred"><div class="stage-num">12</div><div class="stage-name">Metadata</div></div>
+      </div>
+      <p>Cheap checks reject early. Expensive checks only fire on content that survived everything else.</p>
+    </section>
+
+    <section id="confidence">
+      <h2>Confidence &amp; Anti-Laundering</h2>
+      <h3>Three Confidence Tiers</h3>
+      <ul>
+        <li><strong>Hypothesis</strong> — any agent can claim. Self-referential content capped here.</li>
+        <li><strong>Experimental</strong> — requires corroboration from a different agent.</li>
+        <li><strong>Verified</strong> — requires operator confirmation or multi-agent consensus.</li>
+      </ul>
+      <h3>Echo Chamber Detection</h3>
+      <p>BorgOS traces corroboration ancestry 3 hops back. If the "corroborating" agent's knowledge traces back to the original claim, it's flagged as laundering. Three checks: shared ancestry tracing, high-similarity ancestor detection, and time-based suspicion for rapid round-trip patterns.</p>
+      <h3>10 Anomaly Detectors</h3>
+      <p>Volume spikes, confidence manipulation, semantic drift, self-referential floods, corroboration laundering, content-type abuse, rapid-fire writes, identity injection, migration mismatch, merge storms. Weighted composite scoring with four response tiers.</p>
+    </section>
+
+    <section id="competitors">
+      <h2>Competitive Position</h2>
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>BorgOS</th>
+            <th>Mem0 ($24M)</th>
+            <th>Zep (F500)</th>
+            <th>Letta ($10M)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Write Validation</td>
+            <td class="check">Governed pipeline</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+            <td>R/W ACL only</td>
+          </tr>
+          <tr>
+            <td>Anti-Laundering</td>
+            <td class="check">3-hop ancestry</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+          </tr>
+          <tr>
+            <td>Confidence Tiers</td>
+            <td class="check">3-tier + decay</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+          </tr>
+          <tr>
+            <td>Anomaly Detection</td>
+            <td class="check">10 detectors</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+          </tr>
+          <tr>
+            <td>Provenance</td>
+            <td class="check">Bitemporal, append-only</td>
+            <td class="cross">None</td>
+            <td>Temporal validity</td>
+            <td class="cross">None</td>
+          </tr>
+          <tr>
+            <td>Operator Ground Truth</td>
+            <td class="check">Kernel-enforced :ro</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+            <td class="cross">None</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="validation">
+      <h2>Adversarial Validation</h2>
+      <p>Stress-tested by 11 agents across 4 AI vendors. Three rounds.</p>
+      <div style="margin: 1.5rem 0;">
+        <span class="validation-badge">4 Council Members</span>
+        <span class="validation-badge">Red Team</span>
+        <span class="validation-badge">Science Auditor</span>
+        <span class="validation-badge">5 Research Agents</span>
+      </div>
+      <p>Key consensus: <strong>the governed write pipeline has no published equivalent.</strong></p>
+      <h3>Academic Foundation</h3>
+      <ul>
+        <li><strong>HaluMem</strong> (2025) — write-time extraction compounds hallucinations</li>
+        <li><strong>MemoryGraft</strong> (2025) — persistent compromise through poisoned experience</li>
+        <li><strong>Cuadros et al.</strong> (2026) — governed collaborative memory as artificial selection (design agenda; BorgOS is the implementation)</li>
+        <li><strong>Mnemonic Sovereignty</strong> (2026) — memory security across 6 lifecycle phases</li>
+        <li><strong>XCAD</strong> (2025) — echo chamber and collusion detection in trust systems</li>
+      </ul>
+      <p style="margin-top: 1rem;">10/11 cited papers verified. Full citation table in the <a href="architecture.html" style="color: var(--primary);">architecture overview</a>.</p>
+    </section>
+
+    <section id="status">
+      <h2>Status &amp; Roadmap</h2>
+      <p><strong>Design phase.</strong> Architecture specified and validated. v1 core ready to build.</p>
+      <ul>
+        <li><strong>Day 0:</strong> Firewall vector DB port — network isolation prerequisite</li>
+        <li><strong>v1:</strong> Schema + 4-stage write pipeline + reference tier + anomaly alerter</li>
+        <li><strong>v1 soak:</strong> 30-day single-agent monitoring, threshold tuning</li>
+        <li><strong>v1.1:</strong> Multi-agent write paths + consolidation + negative test suite</li>
+        <li><strong>v2:</strong> Dream Cycle + enhanced recall + full 12-stage pipeline</li>
+      </ul>
+    </section>
+
+    <section id="contact">
+      <h2>Get in Touch</h2>
+      <p>Interested in fleet memory architecture for your agent system? The design document is the consulting deliverable — tailored to your fleet, your scale, your compliance requirements.</p>
+      <div class="cta-group" style="margin-top: 1.5rem;">
+        <a href="https://github.com/HiFiGuy" class="cta cta-primary">GitHub @HiFiGuy</a>
+        <a href="https://discord.com" class="cta cta-secondary">Discord: SecDude2469</a>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>BorgOS — The Collective Memory OS for AI Fleets</p>
+      <p style="margin-top: 0.5rem;">&copy; 2026 <a href="https://github.com/HiFiGuy">@HiFiGuy</a> &middot; MIT License &middot; Resistance is futile.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
