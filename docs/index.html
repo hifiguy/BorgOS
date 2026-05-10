@@ -1,464 +1,486 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BorgOS — Fleet Memory Architecture for AI Agents</title>
-  <meta name="description" content="Governed fleet memory architecture for multi-agent AI systems. Write validation, confidence tiers, anti-laundering detection, anomaly alerter.">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BorgOS — Fleet Memory Architecture for AI Agents</title>
+    <meta name="description" content="Governed fleet memory architecture for multi-agent AI systems. Write validation, confidence tiers, anti-laundering detection, anomaly alerter.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --bg-deep: #050509;
+            --surface: #13131f;
+            --text: #e8e8f0;
+            --text-secondary: #a0a0c0;
+            --text-muted: #6060a0;
+            --accent-1: #00ff88;
+            --accent-2: #0080ff;
+            --accent-3: #8800ff;
+            --glass-bg: rgba(255,255,255,0.04);
+            --glass-border: rgba(0,255,136,0.12);
+            --vignette: rgba(0,0,0,0.6);
+            --danger: #ff4444;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', system-ui, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        .font-display { font-family: 'Archivo Black', sans-serif; }
 
-    :root {
-      --bg: #0a0a12;
-      --surface: #13131f;
-      --primary: #00ff88;
-      --secondary: #0080ff;
-      --tertiary: #8800ff;
-      --text: #e8e8f0;
-      --text-secondary: #a0a0c0;
-      --text-muted: #6060a0;
-      --danger: #ff4444;
-    }
+        /* Mouse spotlight */
+        .mouse-spotlight { position: fixed; inset: 0; z-index: 99; pointer-events: none; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Noise overlay on every section */
+        .noise-overlay::before {
+            content: '';
+            position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            background-repeat: repeat; background-size: 256px 256px; opacity: 0.03; mix-blend-mode: overlay;
+        }
+        .noise-overlay::after {
+            content: '';
+            position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 50%, var(--vignette) 100%);
+        }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', system-ui, sans-serif;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+        /* Blobs */
+        .gradient-mesh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); }
+        @keyframes float-slow { 0% { transform: translate(0,0) scale(1); } 25% { transform: translate(60px,-50px) scale(1.12); } 50% { transform: translate(-40px,40px) scale(0.9); } 75% { transform: translate(50px,20px) scale(1.08); } 100% { transform: translate(0,0) scale(1); } }
+        @keyframes float-drift { 0% { transform: translate(0,0) scale(1) rotate(0deg); } 33% { transform: translate(-50px,-60px) scale(1.15) rotate(3deg); } 66% { transform: translate(40px,30px) scale(0.88) rotate(-2deg); } 100% { transform: translate(0,0) scale(1) rotate(0deg); } }
+        .blob:nth-child(1) { animation: float-slow 10s ease-in-out infinite; }
+        .blob:nth-child(2) { animation: float-drift 14s ease-in-out infinite; }
+        .blob:nth-child(3) { animation: float-slow 18s ease-in-out infinite reverse; }
 
-    .container { max-width: 960px; margin: 0 auto; padding: 0 2rem; }
+        /* Hex grid */
+        .hex-grid { position: absolute; inset: 0; z-index: 0; opacity: 0.04; background-image: radial-gradient(circle, rgba(0,255,136,0.8) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
 
-    /* Hero */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
-    }
+        /* Glass cards */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+        }
+        @keyframes border-glow { 0%, 100% { box-shadow: 0 0 0 1px rgba(0,255,136,0.2), inset 0 0 20px rgba(0,255,136,0.02); } 50% { box-shadow: 0 0 0 1px rgba(0,255,136,0.5), inset 0 0 30px rgba(0,255,136,0.05); } }
+        .border-pulse { animation: border-glow 3s ease-in-out infinite; }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: radial-gradient(ellipse at 50% 30%, rgba(0,255,136,0.05) 0%, transparent 60%);
-      pointer-events: none;
-    }
+        /* Glow text */
+        .text-glow { text-shadow: 0 0 20px rgba(0,255,136,0.5), 0 0 40px rgba(0,255,136,0.2); }
+        .stat-glow { text-shadow: 0 0 30px rgba(0,255,136,0.6), 0 0 60px rgba(0,255,136,0.25); }
+        @keyframes glow-pulse { 0%, 100% { text-shadow: 0 0 20px rgba(0,255,136,0.5), 0 0 40px rgba(0,255,136,0.2); } 50% { text-shadow: 0 0 30px rgba(0,255,136,0.8), 0 0 60px rgba(0,255,136,0.3); } }
+        .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
 
-    .hero h1 {
-      font-family: 'Archivo Black', sans-serif;
-      font-size: clamp(3rem, 8vw, 6rem);
-      color: var(--primary);
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-    }
+        /* Scroll reveal */
+        .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
 
-    .hero .tagline {
-      font-size: 1.4rem;
-      color: var(--text-secondary);
-      margin-top: 1rem;
-      max-width: 600px;
-    }
+        /* Scanlines */
+        .scanlines::before {
+            content: ''; position: absolute; inset: 0; z-index: 3;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,136,0.01) 2px, rgba(0,255,136,0.01) 4px);
+            pointer-events: none;
+        }
 
-    .hero .hook {
-      font-size: 1.1rem;
-      color: var(--text-muted);
-      margin-top: 2rem;
-      font-style: italic;
-    }
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1.5rem, 4vw, 4rem); }
 
-    .cta-group {
-      display: flex;
-      gap: 1rem;
-      margin-top: 2.5rem;
-      flex-wrap: wrap;
-    }
+        /* Hero */
+        .hero-section {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        .hero-section .content { position: relative; z-index: 2; text-align: center; }
 
-    .cta {
-      display: inline-block;
-      padding: 0.8rem 2rem;
-      border-radius: 4px;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 1rem;
-      transition: all 0.2s;
-    }
+        /* Sections */
+        .page-section {
+            position: relative; overflow: hidden;
+            padding: clamp(4rem, 8vw, 8rem) 0;
+        }
+        .page-section .content { position: relative; z-index: 2; }
 
-    .cta-primary {
-      background: var(--primary);
-      color: var(--bg);
-    }
+        /* CTAs */
+        .cta {
+            display: inline-block; padding: 0.8rem 2rem; border-radius: 4px;
+            text-decoration: none; font-weight: 700; font-size: 1rem; transition: all 0.2s;
+        }
+        .cta-primary { background: var(--accent-1); color: var(--bg); }
+        .cta-primary:hover { filter: brightness(1.15); }
+        .cta-ghost { border: 1px solid var(--text-muted); color: var(--text); }
+        .cta-ghost:hover { border-color: var(--accent-1); color: var(--accent-1); }
 
-    .cta-primary:hover { filter: brightness(1.15); }
+        /* Stage numbers */
+        .stage-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: rgba(0,255,136,0.15); color: var(--accent-1);
+            font-weight: 700; font-size: 0.75rem; flex-shrink: 0;
+        }
+        .stage-num.active { background: rgba(0,255,136,0.3); }
+        .stage-num.deferred { opacity: 0.4; }
 
-    .cta-secondary {
-      border: 1px solid var(--text-muted);
-      color: var(--text);
-    }
+        /* Validation badges */
+        .badge {
+            display: inline-block; background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3); color: var(--accent-1);
+            padding: 0.3rem 0.8rem; border-radius: 20px;
+            font-size: 0.8rem; font-weight: 700; margin: 0.25rem;
+        }
 
-    .cta-secondary:hover { border-color: var(--primary); color: var(--primary); }
+        /* Tables */
+        .comp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .comp-table th {
+            text-align: left; padding: 0.6rem 0.8rem;
+            border-bottom: 2px solid var(--accent-1); color: var(--accent-1);
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .comp-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+        .comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .check { color: var(--accent-1); font-weight: 700; }
+        .cross { color: var(--danger); opacity: 0.6; }
 
-    /* Sections */
-    section {
-      padding: 5rem 0;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
+        /* Grids */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
 
-    section h2 {
-      font-family: 'Archivo Black', sans-serif;
-      font-size: 2rem;
-      color: var(--primary);
-      margin-bottom: 1.5rem;
-    }
+        /* Footer */
+        footer { padding: 3rem 0; text-align: center; color: var(--text-muted); font-size: 0.85rem; position: relative; z-index: 2; }
+        footer a { color: var(--accent-1); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
 
-    section h3 {
-      font-size: 1.2rem;
-      color: var(--text);
-      margin: 2rem 0 0.75rem;
-    }
-
-    section p, section li {
-      color: var(--text-secondary);
-      max-width: 720px;
-    }
-
-    section ul { list-style: none; padding-left: 0; }
-    section li { padding: 0.4rem 0; }
-    section li::before { content: '▸ '; color: var(--primary); }
-
-    /* Problem */
-    .problem-quote {
-      font-size: 1.3rem;
-      color: var(--text);
-      border-left: 3px solid var(--danger);
-      padding-left: 1.5rem;
-      margin: 2rem 0;
-      max-width: 700px;
-    }
-
-    /* Architecture diagram */
-    .arch-diagram {
-      background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      padding: 2rem;
-      font-family: 'DM Sans', monospace;
-      font-size: 0.9rem;
-      overflow-x: auto;
-      margin: 2rem 0;
-    }
-
-    .layer {
-      padding: 1rem 1.5rem;
-      margin: 0.5rem 0;
-      border-radius: 4px;
-      border-left: 3px solid;
-    }
-
-    .layer-4 { border-color: var(--primary); background: rgba(0,255,136,0.05); }
-    .layer-1 { border-color: var(--secondary); background: rgba(0,128,255,0.05); }
-    .layer-2 { border-color: var(--tertiary); background: rgba(136,0,255,0.05); }
-    .layer-3 { border-color: var(--text-muted); background: rgba(96,96,160,0.05); }
-
-    .layer-label {
-      font-weight: 700;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .layer-desc {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-top: 0.25rem;
-    }
-
-    /* Pipeline */
-    .pipeline-stages {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.75rem;
-      margin: 2rem 0;
-    }
-
-    .stage {
-      background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 6px;
-      padding: 1rem;
-      text-align: center;
-    }
-
-    .stage-num {
-      font-family: 'Archivo Black', sans-serif;
-      font-size: 1.5rem;
-      color: var(--primary);
-    }
-
-    .stage-name {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      margin-top: 0.25rem;
-    }
-
-    .stage.active { border-color: var(--primary); }
-    .stage.deferred { opacity: 0.4; }
-
-    /* Competitors */
-    .comp-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 2rem 0;
-      font-size: 0.9rem;
-    }
-
-    .comp-table th {
-      text-align: left;
-      padding: 0.75rem 1rem;
-      border-bottom: 2px solid var(--primary);
-      color: var(--primary);
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .comp-table td {
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      color: var(--text-secondary);
-    }
-
-    .comp-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-    .check { color: var(--primary); }
-    .cross { color: var(--danger); opacity: 0.6; }
-
-    /* Validation */
-    .validation-badge {
-      display: inline-block;
-      background: rgba(0,255,136,0.1);
-      border: 1px solid rgba(0,255,136,0.3);
-      color: var(--primary);
-      padding: 0.3rem 0.8rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      margin: 0.25rem 0.25rem 0.25rem 0;
-    }
-
-    /* Footer */
-    footer {
-      padding: 3rem 0;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-
-    footer a { color: var(--primary); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-
-    /* Responsive */
-    @media (max-width: 640px) {
-      .hero h1 { font-size: 2.5rem; }
-      .pipeline-stages { grid-template-columns: repeat(2, 1fr); }
-      .comp-table { font-size: 0.75rem; }
-      .comp-table th, .comp-table td { padding: 0.4rem 0.5rem; }
-    }
-  </style>
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; } }
+    </style>
 </head>
 <body>
 
-  <div class="container">
-    <div class="hero">
-      <h1>BorgOS</h1>
-      <p class="tagline">The Collective Memory OS for AI Fleets</p>
-      <p class="hook">Your agents are lying to each other and you don't know it.</p>
-      <div class="cta-group">
-        <a href="https://github.com/HiFiGuy/BorgOS" class="cta cta-primary">View on GitHub</a>
-        <a href="architecture.html" class="cta cta-secondary">Architecture Overview</a>
-      </div>
+<div class="mouse-spotlight"></div>
+
+<!-- HERO -->
+<div class="hero-section noise-overlay scanlines">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:500px;height:500px;top:-100px;right:-100px;background:var(--accent-1);opacity:0.12;"></div>
+        <div class="blob" style="width:350px;height:350px;bottom:-80px;left:-60px;background:var(--accent-2);opacity:0.10;"></div>
+        <div class="blob" style="width:250px;height:250px;top:40%;left:10%;background:var(--accent-3);opacity:0.10;"></div>
     </div>
-
-    <section id="problem">
-      <h2>The Problem</h2>
-      <p>Every team running multiple AI agents hits the same wall: agents don't share what they learn. When they do, there's nothing stopping them from creating echo chambers where guesses get amplified into facts.</p>
-      <div class="problem-quote">
-        Agent A writes a guess. Agent B retrieves it, writes it back as a "corroborating" fact. Now two agents agree. Confidence goes up. The wrong answer looks more credible than the right one.
-      </div>
-      <p>This isn't theoretical. HaluMem (2025) proved write-time extraction compounds hallucinations. MemoryGraft (2025) demonstrated persistent compromise through poisoned experience. And that was single-agent. Multiply it across a fleet.</p>
-      <p style="margin-top: 1rem;">Mem0 ($24M raised, 186M API calls/month) has zero write validation. Zep (Samsung, AWS) has no write pipeline. Letta ($10M) has access control but no validation. The entire market has the same gap.</p>
-    </section>
-
-    <section id="architecture">
-      <h2>Four-Layer Architecture</h2>
-      <div class="arch-diagram">
-        <div class="layer layer-4">
-          <div class="layer-label">L4: Reference — Ground Truth</div>
-          <div class="layer-desc">Operator-curated, kernel-enforced read-only. Agents cannot modify. Confidence: 1.0</div>
+    <canvas id="hero-particles" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="hex-grid"></div>
+    <div class="content">
+        <h1 class="font-display reveal" style="font-size:clamp(3rem,7vw,6rem);background:linear-gradient(135deg,var(--accent-1),var(--accent-2),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.02em;">BorgOS</h1>
+        <p class="reveal" style="font-size:clamp(0.9rem,1.5vw,1.2rem);font-weight:300;color:var(--text-muted);letter-spacing:6px;text-transform:uppercase;margin-top:0.5rem;">Fleet Memory Architecture for AI Agent Systems</p>
+        <p class="reveal" style="color:var(--text-secondary);font-size:1.1rem;margin-top:1.5rem;font-style:italic;">"Resistance is futile. Memory is collective."</p>
+        <div style="display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap;" class="reveal">
+            <a href="https://github.com/HiFiGuy/BorgOS" class="cta cta-primary">View on GitHub</a>
+            <a href="#architecture" class="cta cta-ghost">Architecture</a>
         </div>
-        <div class="layer layer-1">
-          <div class="layer-label">L1: Provenance — Forensic Record</div>
-          <div class="layer-desc">Append-only PostgreSQL, bitemporal. No UPDATE, no DELETE. Permanent audit trail.</div>
+    </div>
+</div>
+
+<!-- THE PROBLEM -->
+<div class="page-section noise-overlay" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:400px;height:400px;top:-80px;right:-80px;background:#ff0040;opacity:0.08;"></div>
+        <div class="blob" style="width:300px;height:300px;bottom:-60px;left:-40px;background:var(--accent-3);opacity:0.06;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">The Problem</p>
+        <h2 class="font-display reveal" style="font-size:clamp(2rem,4vw,3.2rem);margin-bottom:2rem;">Agents forget. Agents repeat.<br>Agents lie to each other.</h2>
+        <div class="grid-3">
+            <div class="glass border-pulse reveal" style="padding:1.5rem;border-left:3px solid #ff4040;">
+                <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.5rem;">No Shared Memory</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">Agent A discovers a critical fact. Agent B rediscovers it three days later. Every agent starts blind to what the fleet already knows.</p>
+            </div>
+            <div class="glass border-pulse reveal" style="padding:1.5rem;border-left:3px solid #ff8800;animation-delay:0.15s;">
+                <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.5rem;">No Governance</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">No audit trail, no retention policies, no confidence system. Memory is unmanaged infrastructure debt accumulating in the dark.</p>
+            </div>
+            <div class="glass border-pulse reveal" style="padding:1.5rem;border-left:3px solid #ffcc00;animation-delay:0.3s;">
+                <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.5rem;">Echo Chamber</h3>
+                <p style="color:var(--text-muted);font-size:0.85rem;">Agent A writes a guess. Agent B retrieves it, writes it back as a "fact." Confidence inflates from nothing. The noise sounds like consensus.</p>
+            </div>
         </div>
-        <div class="layer layer-2">
-          <div class="layer-label">L2: Semantic — Shared Recall</div>
-          <div class="layer-desc">Qdrant, cross-agent, confidence-weighted ranking. Per-agent API keys.</div>
+        <p class="reveal" style="color:var(--text-muted);font-size:0.9rem;margin-top:2rem;max-width:700px;">Mem0 ($24M raised, 186M API calls/month) has zero write validation. Zep (Samsung, AWS) has no write pipeline. Letta ($10M) has access control but no validation. The entire market has the same gap.</p>
+    </div>
+</div>
+
+<!-- FOUR-LAYER ARCHITECTURE -->
+<div class="page-section noise-overlay" id="architecture" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:350px;height:350px;top:-60px;right:-60px;background:var(--accent-2);opacity:0.10;"></div>
+        <div class="blob" style="width:250px;height:250px;bottom:-60px;left:-40px;background:var(--accent-1);opacity:0.07;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">Architecture</p>
+        <h2 class="font-display reveal" style="font-size:clamp(1.8rem,3.5vw,2.8rem);margin-bottom:2rem;">Four-layer memory plane</h2>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="glass reveal" style="padding:1.25rem 1.5rem;border-left:4px solid var(--accent-3);">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div class="font-display" style="font-size:1.5rem;color:var(--accent-3);min-width:2.2rem;">L1</div>
+                    <div>
+                        <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.25rem;">Working — Agent-Local Scratchpad</h3>
+                        <p style="color:var(--text-secondary);font-size:0.85rem;">Fast, session-scoped, per-agent. Promotes to L2 via session-end consolidation. Maintained by Dream Cycle batch operations.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass reveal" style="padding:1.25rem 1.5rem;border-left:4px solid var(--accent-2);">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div class="font-display glow-pulse" style="font-size:1.5rem;color:var(--accent-2);min-width:2.2rem;">L2</div>
+                    <div>
+                        <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.25rem;">Semantic — Shared Fleet Recall</h3>
+                        <p style="color:var(--text-secondary);font-size:0.85rem;">Qdrant with hybrid BM25 + dense vectors. Per-agent API keys. Confidence-weighted ranking. All writes through validated endpoint only — never direct.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass reveal" style="padding:1.25rem 1.5rem;border-left:4px solid var(--accent-1);">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div class="font-display glow-pulse" style="font-size:1.5rem;color:var(--accent-1);min-width:2.2rem;">L3</div>
+                    <div>
+                        <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.25rem;">Provenance — Forensic Record</h3>
+                        <p style="color:var(--text-secondary);font-size:0.85rem;">Append-only PostgreSQL with bitemporal columns. No UPDATE, no DELETE. Every memory fact is a permanent forensic record with full provenance chain.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass reveal" style="padding:1.25rem 1.5rem;border-left:4px solid var(--danger);">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div class="font-display glow-pulse" style="font-size:1.5rem;color:var(--danger);min-width:2.2rem;">L4</div>
+                    <div>
+                        <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.25rem;">Reference — Ground Truth</h3>
+                        <p style="color:var(--text-secondary);font-size:0.85rem;">Operator-curated knowledge. Kernel-enforced read-only. Confidence 1.0. Agents cannot modify — only propose changes for human review.</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="layer layer-3">
-          <div class="layer-label">L3: Working — Agent Scratchpad</div>
-          <div class="layer-desc">Fast, ephemeral, per-agent. Promotes to L2 via validated pipeline.</div>
+        <p class="reveal" style="color:var(--text-muted);font-size:0.8rem;margin-top:1rem;text-align:center;">Trust ascends: L1 (agent-local) → L2 (shared fleet) → L3 (forensic) → L4 (operator ground truth). L4 always wins on collision.</p>
+    </div>
+</div>
+
+<!-- WRITE VALIDATION PIPELINE -->
+<div class="page-section noise-overlay" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:450px;height:450px;top:-100px;right:-80px;background:var(--accent-1);opacity:0.10;"></div>
+        <div class="blob" style="width:280px;height:280px;bottom:-60px;left:-40px;background:var(--accent-3);opacity:0.08;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">Write Validation</p>
+        <h2 class="font-display reveal" style="font-size:clamp(1.8rem,3.5vw,2.8rem);margin-bottom:0.75rem;">A governed pipeline between thought and memory</h2>
+        <p class="reveal" style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.5rem;">v1 ships 4 stages. Full architecture: 12. Remaining stages activate based on production soak data.</p>
+        <div class="grid-2" style="gap:0.6rem;">
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num active">1</span><span style="color:var(--text);font-size:0.9rem;font-weight:600;">API key authentication</span><span style="color:var(--accent-1);font-size:0.7rem;">v1</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">7</span><span style="color:var(--text-muted);font-size:0.9rem;">Novelty / dedup gate</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">2</span><span style="color:var(--text-muted);font-size:0.9rem;">Per-agent rate limiting</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">8</span><span style="color:var(--text-muted);font-size:0.9rem;">Confidence validation</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num active">3</span><span style="color:var(--text);font-size:0.9rem;font-weight:600;">Content sanitization</span><span style="color:var(--accent-1);font-size:0.7rem;">v1</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">9</span><span style="color:var(--text-muted);font-size:0.9rem;">Anti-laundering check</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">4</span><span style="color:var(--text-muted);font-size:0.9rem;">Self-referential detection</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">10</span><span style="color:var(--text-muted);font-size:0.9rem;">Anomaly scoring (10 detectors)</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num active">5</span><span style="color:var(--text);font-size:0.9rem;font-weight:600;">Embedding generation</span><span style="color:var(--accent-1);font-size:0.7rem;">v1</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">11</span><span style="color:var(--text-muted);font-size:0.9rem;">Bitemporal metadata</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num deferred">6</span><span style="color:var(--text-muted);font-size:0.9rem;">Reference collision check</span></div>
+            <div class="reveal" style="display:flex;align-items:center;gap:0.75rem;"><span class="stage-num active">12</span><span style="color:var(--text);font-size:0.9rem;font-weight:600;">Dual write (PG-first)</span><span style="color:var(--accent-1);font-size:0.7rem;">v1</span></div>
         </div>
-      </div>
-      <p>When reference knowledge and agent knowledge collide on the same topic, reference wins. Always. The agent version gets a retrieval penalty.</p>
-    </section>
+        <div class="glass reveal" style="padding:1.25rem;margin-top:1.5rem;">
+            <p style="color:var(--text-secondary);font-size:0.9rem;"><span style="color:var(--accent-1);font-weight:600;">Cheap checks reject early.</span> Auth and sanitization kill bad requests before embedding runs. Full 12-stage pipeline is the target architecture — stages activate when soak data proves they prevent real incidents.</p>
+        </div>
+    </div>
+</div>
 
-    <section id="pipeline">
-      <h2>Write Validation Pipeline</h2>
-      <p>Every memory write passes through a governed pipeline. v1 implements the first 4 stages. The full 12-stage architecture activates remaining stages based on production soak data.</p>
-      <div class="pipeline-stages">
-        <div class="stage active"><div class="stage-num">1</div><div class="stage-name">Auth</div></div>
-        <div class="stage active"><div class="stage-num">2</div><div class="stage-name">Sanitize</div></div>
-        <div class="stage active"><div class="stage-num">3</div><div class="stage-name">Embed</div></div>
-        <div class="stage active"><div class="stage-num">4</div><div class="stage-name">Dual Write</div></div>
-        <div class="stage deferred"><div class="stage-num">5</div><div class="stage-name">Rate Limit</div></div>
-        <div class="stage deferred"><div class="stage-num">6</div><div class="stage-name">Self-Ref Detect</div></div>
-        <div class="stage deferred"><div class="stage-num">7</div><div class="stage-name">L4 Collision</div></div>
-        <div class="stage deferred"><div class="stage-num">8</div><div class="stage-name">Novelty Gate</div></div>
-        <div class="stage deferred"><div class="stage-num">9</div><div class="stage-name">Confidence</div></div>
-        <div class="stage deferred"><div class="stage-num">10</div><div class="stage-name">Provenance</div></div>
-        <div class="stage deferred"><div class="stage-num">11</div><div class="stage-name">Anomaly Score</div></div>
-        <div class="stage deferred"><div class="stage-num">12</div><div class="stage-name">Metadata</div></div>
-      </div>
-      <p>Cheap checks reject early. Expensive checks only fire on content that survived everything else.</p>
-    </section>
+<!-- CONFIDENCE & ANTI-LAUNDERING -->
+<div class="page-section noise-overlay" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:400px;height:400px;top:-80px;right:-80px;background:var(--accent-3);opacity:0.10;"></div>
+        <div class="blob" style="width:300px;height:300px;bottom:-60px;left:-40px;background:var(--accent-1);opacity:0.08;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">Trust Model</p>
+        <h2 class="font-display reveal" style="font-size:clamp(1.8rem,3.5vw,2.8rem);margin-bottom:1.5rem;">Confidence that can't be faked</h2>
+        <div class="grid-3" style="margin-bottom:1.5rem;">
+            <div class="glass reveal" style="padding:1.5rem;text-align:center;">
+                <div class="font-display" style="font-size:1.5rem;color:var(--text-muted);margin-bottom:0.5rem;">hypothesis</div>
+                <div style="color:var(--accent-1);font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;">0.0 – 0.49</div>
+                <p style="color:var(--text-muted);font-size:0.8rem;">Any agent can claim this. Default tier. Self-referential content capped here.</p>
+            </div>
+            <div class="glass reveal" style="padding:1.5rem;text-align:center;">
+                <div class="font-display" style="font-size:1.5rem;color:var(--accent-2);margin-bottom:0.5rem;">experimental</div>
+                <div style="color:var(--accent-1);font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;">0.5 – 0.79</div>
+                <p style="color:var(--text-muted);font-size:0.8rem;">Requires corroboration from a <em>different</em> agent. Same agent cannot self-promote.</p>
+            </div>
+            <div class="glass reveal" style="padding:1.5rem;text-align:center;">
+                <div class="font-display" style="font-size:1.5rem;color:var(--accent-1);margin-bottom:0.5rem;">verified</div>
+                <div style="color:var(--accent-1);font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;">0.8 – 1.0</div>
+                <p style="color:var(--text-muted);font-size:0.8rem;">Operator confirmation or multi-agent consensus only. No agent can set this alone.</p>
+            </div>
+        </div>
+        <div class="glass reveal" style="padding:1.5rem;border-left:3px solid var(--danger);">
+            <h3 class="font-display" style="font-size:1.1rem;margin-bottom:0.5rem;">Anti-Laundering Detection</h3>
+            <p style="color:var(--text-secondary);font-size:0.9rem;">Agent A writes a guess. Agent B retrieves it, writes it back as corroboration. BorgOS catches this with three checks: <span style="color:var(--accent-1);">3-hop shared ancestry tracing</span>, <span style="color:var(--accent-2);">high-similarity ancestor detection</span>, and <span style="color:var(--accent-3);">time-based suspicion</span> for rapid round-trip patterns. Circular confidence boosting is blocked before it starts.</p>
+        </div>
+    </div>
+</div>
 
-    <section id="confidence">
-      <h2>Confidence &amp; Anti-Laundering</h2>
-      <h3>Three Confidence Tiers</h3>
-      <ul>
-        <li><strong>Hypothesis</strong> — any agent can claim. Self-referential content capped here.</li>
-        <li><strong>Experimental</strong> — requires corroboration from a different agent.</li>
-        <li><strong>Verified</strong> — requires operator confirmation or multi-agent consensus.</li>
-      </ul>
-      <h3>Echo Chamber Detection</h3>
-      <p>BorgOS traces corroboration ancestry 3 hops back. If the "corroborating" agent's knowledge traces back to the original claim, it's flagged as laundering. Three checks: shared ancestry tracing, high-similarity ancestor detection, and time-based suspicion for rapid round-trip patterns.</p>
-      <h3>10 Anomaly Detectors</h3>
-      <p>Volume spikes, confidence manipulation, semantic drift, self-referential floods, corroboration laundering, content-type abuse, rapid-fire writes, identity injection, migration mismatch, merge storms. Weighted composite scoring with four response tiers.</p>
-    </section>
+<!-- COMPETITIVE POSITION -->
+<div class="page-section noise-overlay" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:400px;height:400px;top:-80px;right:-80px;background:var(--accent-1);opacity:0.10;"></div>
+        <div class="blob" style="width:300px;height:300px;bottom:-60px;left:-40px;background:var(--accent-2);opacity:0.08;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">Competitive Position</p>
+        <h2 class="font-display reveal" style="font-size:clamp(1.8rem,3.5vw,2.8rem);margin-bottom:1.5rem;">Nobody else validates writes</h2>
+        <div class="reveal" style="overflow-x:auto;">
+            <table class="comp-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th style="text-align:center;">BorgOS</th>
+                        <th style="text-align:center;">Mem0 <span style="color:var(--text-muted);font-size:0.65rem;display:block;">$24M raised</span></th>
+                        <th style="text-align:center;">Zep <span style="color:var(--text-muted);font-size:0.65rem;display:block;">Samsung, AWS</span></th>
+                        <th style="text-align:center;">Letta <span style="color:var(--text-muted);font-size:0.65rem;display:block;">$10M Felicis</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Write Validation</td><td class="check" style="text-align:center;">Governed pipeline</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td><td style="text-align:center;">R/W ACL only</td></tr>
+                    <tr><td>Anti-Laundering</td><td class="check" style="text-align:center;">3-hop ancestry</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td></tr>
+                    <tr><td>Confidence Tiers</td><td class="check" style="text-align:center;">3-tier + decay</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td></tr>
+                    <tr><td>Anomaly Detection</td><td class="check" style="text-align:center;">10 detectors</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td></tr>
+                    <tr><td>Provenance</td><td class="check" style="text-align:center;">Bitemporal</td><td class="cross" style="text-align:center;">None</td><td style="text-align:center;">Temporal only</td><td class="cross" style="text-align:center;">None</td></tr>
+                    <tr><td>Ground Truth Layer</td><td class="check" style="text-align:center;">Kernel :ro</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td><td class="cross" style="text-align:center;">None</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="reveal" style="color:var(--text-muted);font-size:0.8rem;margin-top:1rem;text-align:center;">Verified 2026-05-10 by 5 independent research agents across Google, OpenAI, xAI, and Perplexity</p>
+    </div>
+</div>
 
-    <section id="competitors">
-      <h2>Competitive Position</h2>
-      <table class="comp-table">
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>BorgOS</th>
-            <th>Mem0 ($24M)</th>
-            <th>Zep (F500)</th>
-            <th>Letta ($10M)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Write Validation</td>
-            <td class="check">Governed pipeline</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-            <td>R/W ACL only</td>
-          </tr>
-          <tr>
-            <td>Anti-Laundering</td>
-            <td class="check">3-hop ancestry</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-          </tr>
-          <tr>
-            <td>Confidence Tiers</td>
-            <td class="check">3-tier + decay</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-          </tr>
-          <tr>
-            <td>Anomaly Detection</td>
-            <td class="check">10 detectors</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-          </tr>
-          <tr>
-            <td>Provenance</td>
-            <td class="check">Bitemporal, append-only</td>
-            <td class="cross">None</td>
-            <td>Temporal validity</td>
-            <td class="cross">None</td>
-          </tr>
-          <tr>
-            <td>Operator Ground Truth</td>
-            <td class="check">Kernel-enforced :ro</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-            <td class="cross">None</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+<!-- VALIDATION -->
+<div class="page-section noise-overlay" style="border-top:1px solid rgba(255,255,255,0.05);">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:350px;height:350px;top:-60px;right:-60px;background:var(--accent-2);opacity:0.10;"></div>
+        <div class="blob" style="width:250px;height:250px;bottom:-60px;left:-40px;background:var(--accent-1);opacity:0.07;"></div>
+    </div>
+    <div class="container content">
+        <p class="reveal" style="color:var(--accent-1);text-transform:uppercase;letter-spacing:4px;font-size:0.85rem;margin-bottom:0.75rem;">Validation</p>
+        <h2 class="font-display reveal" style="font-size:clamp(1.8rem,3.5vw,2.8rem);margin-bottom:1.5rem;">Stress-tested by 11 adversarial agents</h2>
+        <div class="reveal" style="margin-bottom:1.5rem;">
+            <span class="badge">4 Council Members</span>
+            <span class="badge">Red Team</span>
+            <span class="badge">Science Auditor</span>
+            <span class="badge">5 Research Agents</span>
+        </div>
+        <p class="reveal" style="color:var(--text-secondary);font-size:1rem;margin-bottom:2rem;">Key consensus: <strong style="color:var(--text);">the governed write pipeline has no published equivalent.</strong></p>
+        <h3 class="font-display reveal" style="font-size:1.1rem;margin-bottom:1rem;color:var(--text);">Academic Foundation</h3>
+        <div class="grid-2" style="gap:0.75rem;">
+            <div class="glass reveal" style="padding:1rem;"><span style="color:var(--accent-1);font-weight:700;">HaluMem</span> <span style="color:var(--text-muted);font-size:0.85rem;">(2025)</span><br><span style="color:var(--text-secondary);font-size:0.85rem;">Write-time extraction compounds hallucinations</span></div>
+            <div class="glass reveal" style="padding:1rem;"><span style="color:var(--accent-1);font-weight:700;">MemoryGraft</span> <span style="color:var(--text-muted);font-size:0.85rem;">(2025)</span><br><span style="color:var(--text-secondary);font-size:0.85rem;">Persistent compromise through poisoned experience</span></div>
+            <div class="glass reveal" style="padding:1rem;"><span style="color:var(--accent-1);font-weight:700;">Cuadros et al.</span> <span style="color:var(--text-muted);font-size:0.85rem;">(2026)</span><br><span style="color:var(--text-secondary);font-size:0.85rem;">Governed collaborative memory as artificial selection — design agenda; BorgOS is the implementation</span></div>
+            <div class="glass reveal" style="padding:1rem;"><span style="color:var(--accent-1);font-weight:700;">Mnemonic Sovereignty</span> <span style="color:var(--text-muted);font-size:0.85rem;">(2026)</span><br><span style="color:var(--text-secondary);font-size:0.85rem;">Memory security across 6 lifecycle phases</span></div>
+        </div>
+    </div>
+</div>
 
-    <section id="validation">
-      <h2>Adversarial Validation</h2>
-      <p>Stress-tested by 11 agents across 4 AI vendors. Three rounds.</p>
-      <div style="margin: 1.5rem 0;">
-        <span class="validation-badge">4 Council Members</span>
-        <span class="validation-badge">Red Team</span>
-        <span class="validation-badge">Science Auditor</span>
-        <span class="validation-badge">5 Research Agents</span>
-      </div>
-      <p>Key consensus: <strong>the governed write pipeline has no published equivalent.</strong></p>
-      <h3>Academic Foundation</h3>
-      <ul>
-        <li><strong>HaluMem</strong> (2025) — write-time extraction compounds hallucinations</li>
-        <li><strong>MemoryGraft</strong> (2025) — persistent compromise through poisoned experience</li>
-        <li><strong>Cuadros et al.</strong> (2026) — governed collaborative memory as artificial selection (design agenda; BorgOS is the implementation)</li>
-        <li><strong>Mnemonic Sovereignty</strong> (2026) — memory security across 6 lifecycle phases</li>
-        <li><strong>XCAD</strong> (2025) — echo chamber and collusion detection in trust systems</li>
-      </ul>
-      <p style="margin-top: 1rem;">10/11 cited papers verified. Full citation table in the <a href="architecture.html" style="color: var(--primary);">architecture overview</a>.</p>
-    </section>
+<!-- CLOSING -->
+<div class="page-section noise-overlay scanlines" style="border-top:1px solid rgba(255,255,255,0.05);padding-bottom:2rem;">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:600px;height:600px;top:-120px;right:-120px;background:var(--accent-1);opacity:0.14;"></div>
+        <div class="blob" style="width:400px;height:400px;bottom:-100px;left:-80px;background:var(--accent-2);opacity:0.10;"></div>
+        <div class="blob" style="width:300px;height:300px;top:30%;left:20%;background:var(--accent-3);opacity:0.10;"></div>
+    </div>
+    <canvas id="closing-particles" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="hex-grid"></div>
+    <div class="container content" style="text-align:center;">
+        <h2 class="font-display reveal" style="font-size:clamp(2.5rem,5vw,4rem);background:linear-gradient(135deg,var(--accent-1),var(--accent-2),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.75rem;">One memory. Every agent.<br>Zero lies.</h2>
+        <p class="reveal" style="color:var(--text-secondary);font-size:1.2rem;font-weight:300;margin-bottom:2rem;">Fleet memory architecture with trust built in.</p>
+        <div class="grid-4 reveal" style="max-width:640px;margin:0 auto;">
+            <div class="glass" style="padding:1rem;text-align:center;">
+                <div class="font-display stat-glow" style="font-size:1.8rem;color:var(--accent-1);">4</div>
+                <div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem;">Memory Layers</div>
+            </div>
+            <div class="glass" style="padding:1rem;text-align:center;">
+                <div class="font-display stat-glow" style="font-size:1.8rem;color:var(--accent-2);">12</div>
+                <div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem;">Pipeline Stages</div>
+            </div>
+            <div class="glass" style="padding:1rem;text-align:center;">
+                <div class="font-display stat-glow" style="font-size:1.8rem;color:var(--accent-3);">10</div>
+                <div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem;">Anomaly Detectors</div>
+            </div>
+            <div class="glass" style="padding:1rem;text-align:center;">
+                <div class="font-display stat-glow" style="font-size:1.8rem;color:var(--danger);">11</div>
+                <div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem;">Review Agents</div>
+            </div>
+        </div>
+        <p class="reveal" style="color:var(--text-muted);font-size:0.9rem;margin-top:1.5rem;">Validated by 11 adversarial agents across 4 AI vendors. No published equivalent exists.</p>
+        <div style="display:flex;gap:1rem;justify-content:center;margin-top:2rem;flex-wrap:wrap;" class="reveal">
+            <a href="https://github.com/HiFiGuy" class="cta cta-primary">GitHub @HiFiGuy</a>
+            <a href="https://discord.com" class="cta cta-ghost">Discord: SecDude2469</a>
+        </div>
+    </div>
+</div>
 
-    <section id="status">
-      <h2>Status &amp; Roadmap</h2>
-      <p><strong>Design phase.</strong> Architecture specified and validated. v1 core ready to build.</p>
-      <ul>
-        <li><strong>Day 0:</strong> Firewall vector DB port — network isolation prerequisite</li>
-        <li><strong>v1:</strong> Schema + 4-stage write pipeline + reference tier + anomaly alerter</li>
-        <li><strong>v1 soak:</strong> 30-day single-agent monitoring, threshold tuning</li>
-        <li><strong>v1.1:</strong> Multi-agent write paths + consolidation + negative test suite</li>
-        <li><strong>v2:</strong> Dream Cycle + enhanced recall + full 12-stage pipeline</li>
-      </ul>
-    </section>
-
-    <section id="contact">
-      <h2>Get in Touch</h2>
-      <p>Interested in fleet memory architecture for your agent system? The design document is the consulting deliverable — tailored to your fleet, your scale, your compliance requirements.</p>
-      <div class="cta-group" style="margin-top: 1.5rem;">
-        <a href="https://github.com/HiFiGuy" class="cta cta-primary">GitHub @HiFiGuy</a>
-        <a href="https://discord.com" class="cta cta-secondary">Discord: SecDude2469</a>
-      </div>
-    </section>
-  </div>
-
-  <footer>
+<footer>
     <div class="container">
-      <p>BorgOS — The Collective Memory OS for AI Fleets</p>
-      <p style="margin-top: 0.5rem;">&copy; 2026 <a href="https://github.com/HiFiGuy">@HiFiGuy</a> &middot; MIT License &middot; Resistance is futile.</p>
+        <p>BorgOS — The Collective Memory OS for AI Fleets</p>
+        <p style="margin-top:0.5rem;">&copy; 2026 <a href="https://github.com/HiFiGuy">@HiFiGuy</a> &middot; MIT License &middot; Resistance is futile.</p>
     </div>
-  </footer>
+</footer>
+
+<script>
+// Mouse spotlight
+document.addEventListener('mousemove', (e) => {
+    const sl = document.querySelector('.mouse-spotlight');
+    if (sl) sl.style.background = `radial-gradient(600px circle at ${e.clientX}px ${e.clientY}px, rgba(0,255,136,0.05), transparent 40%)`;
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) { entry.target.classList.add('visible'); }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Particle system
+function initParticles(canvas) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+    resize(); window.addEventListener('resize', resize);
+    const particles = Array.from({ length: 55 }, () => ({
+        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 2.5 + 0.8, alpha: Math.random() * 0.35 + 0.1
+    }));
+    let mx = -1000, my = -1000;
+    canvas.addEventListener('mousemove', (e) => { const r = canvas.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; });
+    canvas.addEventListener('mouseleave', () => { mx = -1000; my = -1000; });
+    (function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            const dx = p.x - mx, dy = p.y - my, dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) { const force = (120 - dist) / 120 * 2; p.vx += (dx / dist) * force * 0.1; p.vy += (dy / dist) * force * 0.1; }
+            p.vx *= 0.98; p.vy *= 0.98; p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+            if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,255,136,${p.alpha})`; ctx.fill();
+        });
+        requestAnimationFrame(animate);
+    })();
+}
+initParticles(document.getElementById('hero-particles'));
+initParticles(document.getElementById('closing-particles'));
+</script>
 
 </body>
 </html>
